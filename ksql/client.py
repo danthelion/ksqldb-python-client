@@ -5,9 +5,7 @@ from ksql.api import SimplifiedAPI
 from ksql.utils import process_query_result
 
 
-class KSQLAPI(object):
-    """ API Class """
-
+class KSQLAPI:
     def __init__(self, url, max_retries=3, check_version=True, **kwargs):
         """
         You can use a Basic Authentication with this API, for now we accept the api_key/secret based on the Confluent
@@ -33,7 +31,9 @@ class KSQLAPI(object):
             return version
 
         else:
-            raise ValueError("Status Code: {}.\nMessage: {}".format(r.status_code, r.content))
+            raise ValueError(
+                "Status Code: {}.\nMessage: {}".format(r.status_code, r.content)
+            )
 
     def get_properties(self):
         properties = self.sa.ksql("show properties;")
@@ -42,7 +42,16 @@ class KSQLAPI(object):
     def ksql(self, ksql_string, stream_properties=None):
         return self.sa.ksql(ksql_string, stream_properties=stream_properties)
 
-    def query(self, query_string, encoding="utf-8", chunk_size=128, stream_properties=None, idle_timeout=None, use_http2=None, return_objects=None):
+    def query(
+        self,
+        query_string,
+        encoding="utf-8",
+        chunk_size=128,
+        stream_properties=None,
+        idle_timeout=None,
+        use_http2=None,
+        return_objects=None,
+    ):
         if use_http2:
             yield from self.sa.query2(
                 query_string=query_string,
@@ -70,12 +79,22 @@ class KSQLAPI(object):
 
     def create_stream(self, table_name, columns_type, topic, value_format="JSON"):
         return self.sa.create_stream(
-            table_name=table_name, columns_type=columns_type, topic=topic, value_format=value_format
+            table_name=table_name,
+            columns_type=columns_type,
+            topic=topic,
+            value_format=value_format,
         )
 
-    def create_table(self, table_name, columns_type, topic, value_format, key, **kwargs):
+    def create_table(
+        self, table_name, columns_type, topic, value_format, key, **kwargs
+    ):
         return self.sa.create_table(
-            table_name=table_name, columns_type=columns_type, topic=topic, value_format=value_format, key=key, **kwargs
+            table_name=table_name,
+            columns_type=columns_type,
+            topic=topic,
+            value_format=value_format,
+            key=key,
+            **kwargs,
         )
 
     def create_stream_as(

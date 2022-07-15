@@ -50,7 +50,9 @@ class TestKSQLUtils(unittest.TestCase):
             stream_name, topic
         )
         self.api_client.ksql(ksql_string)
-        ksql_string = "CREATE STREAM {} as select * from {};".format(stream_name_as, stream_name)
+        ksql_string = "CREATE STREAM {} as select * from {};".format(
+            stream_name_as, stream_name
+        )
         self.api_client.ksql(ksql_string)
 
         self.assertTrue(utils.get_stream_info(self.api_client, stream_name_as))
@@ -67,7 +69,9 @@ class TestKSQLUtils(unittest.TestCase):
             stream_name, topic
         )
         self.api_client.ksql(ksql_string)
-        filtered_streams = utils.get_all_streams(self.api_client, prefix=self.test_prefix)
+        filtered_streams = utils.get_all_streams(
+            self.api_client, prefix=self.test_prefix
+        )
         self.assertEqual(filtered_streams, [stream_name.upper()])
 
     @vcr.use_cassette("tests/vcr_cassettes/utils_test_get_stream_info.yml")
@@ -108,26 +112,41 @@ class TestKSQLUtils(unittest.TestCase):
             stream_name, topic
         )
         self.api_client.ksql(ksql_string)
-        ksql_string = "CREATE STREAM {} as select * from {};".format(stream_name_as, stream_name)
+        ksql_string = "CREATE STREAM {} as select * from {};".format(
+            stream_name_as, stream_name
+        )
         self.api_client.ksql(ksql_string)
-        read_queries, write_queries = utils.get_dependent_queries(self.api_client, stream_name_as)
+        read_queries, write_queries = utils.get_dependent_queries(
+            self.api_client, stream_name_as
+        )
         self.assertEqual(read_queries, [])
-        self.assertTrue(write_queries[0].startswith("CSAS_KSQL_PYTHON_TEST_TEST_GET_DEPENDENT_QUERIES_AS"))
+        self.assertTrue(
+            write_queries[0].startswith(
+                "CSAS_KSQL_PYTHON_TEST_TEST_GET_DEPENDENT_QUERIES_AS"
+            )
+        )
 
     def test_parse_columns(self):
         header_str = """[{"header":{"queryId":"none","schema":"`ORDER_ID` INTEGER, `MY_STRUCT` STRUCT<`A` INTEGER, `B` STRING>, `MY_MAP` MAP<STRING, INTEGER>, `MY_ARRAY` ARRAY<INTEGER>, `TOTAL_AMOUNT` DOUBLE, `CUSTOMER_NAME` STRING"}},"""
 
         columns = utils.parse_columns(header_str)
 
-        self.assertEqual(columns[0], {'name': 'ORDER_ID', 'type': 'INTEGER'})
-        self.assertEqual(columns[1], {'name': 'MY_STRUCT', 'type': 'STRUCT'})
-        self.assertEqual(columns[2], {'name': 'MY_MAP', 'type': 'MAP'})
-        self.assertEqual(columns[3], {'name': 'MY_ARRAY', 'type': 'ARRAY'})
-        self.assertEqual(columns[4], {'name': 'TOTAL_AMOUNT', 'type': 'DOUBLE'})
-        self.assertEqual(columns[5], {'name': 'CUSTOMER_NAME', 'type': 'STRING'})
+        self.assertEqual(columns[0], {"name": "ORDER_ID", "type": "INTEGER"})
+        self.assertEqual(columns[1], {"name": "MY_STRUCT", "type": "STRUCT"})
+        self.assertEqual(columns[2], {"name": "MY_MAP", "type": "MAP"})
+        self.assertEqual(columns[3], {"name": "MY_ARRAY", "type": "ARRAY"})
+        self.assertEqual(columns[4], {"name": "TOTAL_AMOUNT", "type": "DOUBLE"})
+        self.assertEqual(columns[5], {"name": "CUSTOMER_NAME", "type": "STRING"})
 
     def test_process_row(self):
-        parsed_header = [{'name': 'ORDER_ID', 'type': 'INTEGER'}, {'name': 'MY_STRUCT', 'type': 'STRUCT'}, {'name': 'MY_MAP', 'type': 'MAP'}, {'name': 'MY_ARRAY', 'type': 'ARRAY'}, {'name': 'TOTAL_AMOUNT', 'type': 'DOUBLE'}, {'name': 'CUSTOMER_NAME', 'type': 'STRING'}]
+        parsed_header = [
+            {"name": "ORDER_ID", "type": "INTEGER"},
+            {"name": "MY_STRUCT", "type": "STRUCT"},
+            {"name": "MY_MAP", "type": "MAP"},
+            {"name": "MY_ARRAY", "type": "ARRAY"},
+            {"name": "TOTAL_AMOUNT", "type": "DOUBLE"},
+            {"name": "CUSTOMER_NAME", "type": "STRING"},
+        ]
         row_str = """{"row":{"columns":[3,{"A":1,"B":"bbb"},{"x":3,"y":4},[1,2,3],43.0,"Palo Alto"]}},\n"""
 
         row_obj = utils.process_row(row_str, parsed_header)
@@ -141,7 +160,7 @@ class TestKSQLUtils(unittest.TestCase):
 
     def test_process_query_result(self):
         def mock_generator():
-            results = [1,2,3,4,5,6]
+            results = [1, 2, 3, 4, 5, 6]
             for a in results:
                 yield a
 

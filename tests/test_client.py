@@ -38,13 +38,13 @@ class TestKSQLAPI(unittest.TestCase):
 
     @vcr.use_cassette("tests/vcr_cassettes/healthcheck.yml")
     def test_ksql_server_healthcheck(self):
-        """ Test GET requests """
+        """Test GET requests"""
         res = requests.get(self.url + "/status")
         self.assertEqual(res.status_code, 200)
 
     @vcr.use_cassette("tests/vcr_cassettes/get_ksql_server.yml")
     def test_get_ksql_version_success(self):
-        """ Test GET requests """
+        """Test GET requests"""
         version = self.api_client.get_ksql_version()
         self.assertEqual(version, ksql.__ksql_server_version__)
 
@@ -56,28 +56,60 @@ class TestKSQLAPI(unittest.TestCase):
 
     @vcr.use_cassette("tests/vcr_cassettes/ksql_show_table_with_api_key.yml")
     def test_ksql_show_tables_with_api_key(self):
-        api_client = KSQLAPI(url=self.url, check_version=False, api_key='foo', secret='bar')
+        api_client = KSQLAPI(
+            url=self.url, check_version=False, api_key="foo", secret="bar"
+        )
         ksql_string = "show tables;"
         r = api_client.ksql(ksql_string)
-        self.assertEqual(r, [{"@type": "tables", "statementText": "show tables;", "tables": [], "warnings": []}])
+        self.assertEqual(
+            r,
+            [
+                {
+                    "@type": "tables",
+                    "statementText": "show tables;",
+                    "tables": [],
+                    "warnings": [],
+                }
+            ],
+        )
 
     @vcr.use_cassette("tests/vcr_cassettes/ksql_show_table.yml")
     def test_ksql_show_tables(self):
-        """ Test GET requests """
+        """Test GET requests"""
         ksql_string = "show tables;"
         r = self.api_client.ksql(ksql_string)
-        self.assertEqual(r, [{"@type": "tables", "statementText": "show tables;", "tables": [], "warnings": []}])
+        self.assertEqual(
+            r,
+            [
+                {
+                    "@type": "tables",
+                    "statementText": "show tables;",
+                    "tables": [],
+                    "warnings": [],
+                }
+            ],
+        )
 
     @vcr.use_cassette("tests/vcr_cassettes/ksql_show_table.yml")
     def test_ksql_show_tables_with_no_semicolon(self):
-        """ Test GET requests """
+        """Test GET requests"""
         ksql_string = "show tables"
         r = self.api_client.ksql(ksql_string)
-        self.assertEqual(r, [{"@type": "tables", "statementText": "show tables;", "tables": [], "warnings": []}])
+        self.assertEqual(
+            r,
+            [
+                {
+                    "@type": "tables",
+                    "statementText": "show tables;",
+                    "tables": [],
+                    "warnings": [],
+                }
+            ],
+        )
 
     @vcr.use_cassette("tests/vcr_cassettes/ksql_create_stream.yml")
     def test_ksql_create_stream(self):
-        """ Test GET requests """
+        """Test GET requests"""
         topic = self.exist_topic
         stream_name = self.test_prefix + "test_ksql_create_stream"
         ksql_string = "CREATE STREAM {} (viewtime bigint, userid varchar, pageid varchar) \
@@ -87,9 +119,12 @@ class TestKSQLAPI(unittest.TestCase):
         r = self.api_client.ksql(ksql_string)
         self.assertEqual(r[0]["commandStatus"]["status"], "SUCCESS")
 
-    @unittest.skipIf(not utils.check_kafka_available("localhost:29092"), "vcrpy does not support streams yet")
+    @unittest.skipIf(
+        not utils.check_kafka_available("localhost:29092"),
+        "vcrpy does not support streams yet",
+    )
     def test_ksql_create_stream_w_properties(self):
-        """ Test GET requests """
+        """Test GET requests"""
         topic = self.exist_topic
         stream_name = "TEST_KSQL_CREATE_STREAM"
         ksql_string = "CREATE STREAM {} (ORDER_ID INT, TOTAL_AMOUNT DOUBLE, CUSTOMER_NAME VARCHAR) \
@@ -103,16 +138,23 @@ class TestKSQLAPI(unittest.TestCase):
             self.assertEqual(r[0]["commandStatus"]["status"], "SUCCESS")
 
         producer = Producer({"bootstrap.servers": self.bootstrap_servers})
-        producer.produce(self.exist_topic, """{"order_id":3,"total_amount":43,"customer_name":"Palo Alto"}""")
+        producer.produce(
+            self.exist_topic,
+            """{"order_id":3,"total_amount":43,"customer_name":"Palo Alto"}""",
+        )
         producer.flush()
 
         # test legacy HTTP/1.1 request
         chunks = self.api_client.query(
-            "select * from {} EMIT CHANGES".format(stream_name), stream_properties=streamProperties
+            "select * from {} EMIT CHANGES".format(stream_name),
+            stream_properties=streamProperties,
         )
 
         header = next(chunks)
-        self.assertEqual(header, """[{"header":{"queryId":"none","schema":"`ORDER_ID` INTEGER, `TOTAL_AMOUNT` DOUBLE, `CUSTOMER_NAME` STRING"}},\n""")
+        self.assertEqual(
+            header,
+            """[{"header":{"queryId":"none","schema":"`ORDER_ID` INTEGER, `TOTAL_AMOUNT` DOUBLE, `CUSTOMER_NAME` STRING"}},\n""",
+        )
 
         for chunk in chunks:
             self.assertEqual(chunk, """{"row":{"columns":[3,43.0,"Palo Alto"]}},\n""")
@@ -120,33 +162,43 @@ class TestKSQLAPI(unittest.TestCase):
 
         # test new HTTP/2 request
         chunks = self.api_client.query(
-            "select * from {} EMIT CHANGES".format(stream_name), stream_properties=streamProperties, use_http2=True
+            "select * from {} EMIT CHANGES".format(stream_name),
+            stream_properties=streamProperties,
+            use_http2=True,
         )
 
         header = next(chunks)
         header_obj = json.loads(header)
-        self.assertEqual(header_obj["columnNames"], ['ORDER_ID', 'TOTAL_AMOUNT', 'CUSTOMER_NAME'])
-        self.assertEqual(header_obj["columnTypes"], ['INTEGER', 'DOUBLE', 'STRING'])
+        self.assertEqual(
+            header_obj["columnNames"], ["ORDER_ID", "TOTAL_AMOUNT", "CUSTOMER_NAME"]
+        )
+        self.assertEqual(header_obj["columnTypes"], ["INTEGER", "DOUBLE", "STRING"])
 
         for chunk in chunks:
             chunk_obj = json.loads(chunk)
-            self.assertEqual(chunk_obj, [3,43.0, "Palo Alto"])
+            self.assertEqual(chunk_obj, [3, 43.0, "Palo Alto"])
             break
 
-    @unittest.skipIf(not utils.check_kafka_available("localhost:29092"), "vcrpy does not support HTTP/2")
+    @unittest.skipIf(
+        not utils.check_kafka_available("localhost:29092"),
+        "vcrpy does not support HTTP/2",
+    )
     def test_ksql_close_query(self):
         result = self.api_client.close_query("123")
 
         self.assertFalse(result)
 
-    @unittest.skipIf(not utils.check_kafka_available("localhost:29092"), "vcrpy does not support streams yet")
+    @unittest.skipIf(
+        not utils.check_kafka_available("localhost:29092"),
+        "vcrpy does not support streams yet",
+    )
     def test_inserts_stream(self):
         topic = self.exist_topic
         stream_name = "TEST_INSERTS_STREAM_STREAM"
         ksql_string = "CREATE STREAM {} (ORDER_ID INT, TOTAL_AMOUNT DOUBLE, CUSTOMER_NAME VARCHAR) \
         WITH (kafka_topic='{}', value_format='JSON');".format(
-                    stream_name, topic
-                )
+            stream_name, topic
+        )
 
         streamProperties = {"ksql.streams.auto.offset.reset": "earliest"}
 
@@ -156,7 +208,7 @@ class TestKSQLAPI(unittest.TestCase):
 
         rows = [
             {"ORDER_ID": 1, "TOTAL_AMOUNT": 23.5, "CUSTOMER_NAME": "abc"},
-            {"ORDER_ID": 2, "TOTAL_AMOUNT": 3.7, "CUSTOMER_NAME": "xyz"}
+            {"ORDER_ID": 2, "TOTAL_AMOUNT": 3.7, "CUSTOMER_NAME": "xyz"},
         ]
 
         results = self.api_client.inserts_stream(stream_name, rows)
@@ -164,13 +216,19 @@ class TestKSQLAPI(unittest.TestCase):
         for result in results:
             self.assertEqual(result["status"], "ok")
 
-    @unittest.skipIf(not utils.check_kafka_available("localhost:29092"), "vcrpy does not support streams yet")
+    @unittest.skipIf(
+        not utils.check_kafka_available("localhost:29092"),
+        "vcrpy does not support streams yet",
+    )
     def test_ksql_parse_query_result_with_utils(self):
         topic = "TEST_KSQL_PARSE_QUERY_RESULT_WITH_UTILS_TOPIC"
         stream_name = "TEST_KSQL_PARSE_QUERY_RESULT_WITH_UTILS_STREAM"
 
         producer = Producer({"bootstrap.servers": self.bootstrap_servers})
-        producer.produce(topic, """{"order_id":3,"my_struct":{"a":1,"b":"bbb"}, "my_map":{"x":3, "y":4}, "my_array":[1,2,3], "total_amount":43,"customer_name":"Palo Alto"}""")
+        producer.produce(
+            topic,
+            """{"order_id":3,"my_struct":{"a":1,"b":"bbb"}, "my_map":{"x":3, "y":4}, "my_array":[1,2,3], "total_amount":43,"customer_name":"Palo Alto"}""",
+        )
         producer.flush()
 
         ksql_string = "CREATE STREAM {} (ORDER_ID INT, MY_STRUCT STRUCT<A INT, B VARCHAR>, MY_MAP MAP<VARCHAR, INT>, MY_ARRAY ARRAY<INT>, TOTAL_AMOUNT DOUBLE, CUSTOMER_NAME VARCHAR) \
@@ -184,7 +242,8 @@ class TestKSQLAPI(unittest.TestCase):
             self.assertEqual(r[0]["commandStatus"]["status"], "SUCCESS")
 
         chunks = self.api_client.query(
-            "select * from {} EMIT CHANGES".format(stream_name), stream_properties=streamProperties
+            "select * from {} EMIT CHANGES".format(stream_name),
+            stream_properties=streamProperties,
         )
         header = next(chunks)
         columns = utils.parse_columns(header)
@@ -199,13 +258,19 @@ class TestKSQLAPI(unittest.TestCase):
             self.assertEqual(row_obj["CUSTOMER_NAME"], "Palo Alto")
             break
 
-    @unittest.skipIf(not utils.check_kafka_available("localhost:29092"), "vcrpy does not support streams yet")
+    @unittest.skipIf(
+        not utils.check_kafka_available("localhost:29092"),
+        "vcrpy does not support streams yet",
+    )
     def test_ksql_parse_query_result(self):
         topic = "TEST_KSQL_PARSE_QUERY_RESULT_TOPIC"
         stream_name = "TEST_KSQL_PARSE_QUERY_RESULT_STREAM"
 
         producer = Producer({"bootstrap.servers": self.bootstrap_servers})
-        producer.produce(topic, """{"order_id":3,"my_struct":{"a":1,"b":"bbb"}, "my_map":{"x":3, "y":4}, "my_array":[1,2,3], "total_amount":43,"customer_name":"Palo Alto"}""")
+        producer.produce(
+            topic,
+            """{"order_id":3,"my_struct":{"a":1,"b":"bbb"}, "my_map":{"x":3, "y":4}, "my_array":[1,2,3], "total_amount":43,"customer_name":"Palo Alto"}""",
+        )
         producer.flush()
 
         ksql_string = "CREATE STREAM {} (ORDER_ID INT, MY_STRUCT STRUCT<A INT, B VARCHAR>, MY_MAP MAP<VARCHAR, INT>, MY_ARRAY ARRAY<INT>, TOTAL_AMOUNT DOUBLE, CUSTOMER_NAME VARCHAR) \
@@ -219,7 +284,9 @@ class TestKSQLAPI(unittest.TestCase):
             self.assertEqual(r[0]["commandStatus"]["status"], "SUCCESS")
 
         chunks = self.api_client.query(
-            "select * from {} EMIT CHANGES".format(stream_name), stream_properties=streamProperties, return_objects=True
+            "select * from {} EMIT CHANGES".format(stream_name),
+            stream_properties=streamProperties,
+            return_objects=True,
         )
 
         for chunk in chunks:
@@ -231,13 +298,19 @@ class TestKSQLAPI(unittest.TestCase):
             self.assertEqual(chunk["CUSTOMER_NAME"], "Palo Alto")
             break
 
-    @unittest.skipIf(not utils.check_kafka_available("localhost:29092"), "vcrpy does not support streams yet")
+    @unittest.skipIf(
+        not utils.check_kafka_available("localhost:29092"),
+        "vcrpy does not support streams yet",
+    )
     def test_ksql_parse_query_final_message(self):
         topic = "TEST_KSQL_PARSE_QUERY_FINAL_MESSAGE_TOPIC"
         stream_name = "TEST_KSQL_PARSE_QUERY_FINAL_MESSAGE_STREAM"
 
         producer = Producer({"bootstrap.servers": self.bootstrap_servers})
-        producer.produce(topic, """{"order_id":3,"my_struct":{"a":1,"b":"bbb"}, "my_map":{"x":3, "y":4}, "my_array":[1,2,3], "total_amount":43,"customer_name":"Palo Alto"}""")
+        producer.produce(
+            topic,
+            """{"order_id":3,"my_struct":{"a":1,"b":"bbb"}, "my_map":{"x":3, "y":4}, "my_array":[1,2,3], "total_amount":43,"customer_name":"Palo Alto"}""",
+        )
         producer.flush()
 
         ksql_string = "CREATE STREAM {} (ORDER_ID INT, MY_STRUCT STRUCT<A INT, B VARCHAR>, MY_MAP MAP<VARCHAR, INT>, MY_ARRAY ARRAY<INT>, TOTAL_AMOUNT DOUBLE, CUSTOMER_NAME VARCHAR) \
@@ -251,7 +324,9 @@ class TestKSQLAPI(unittest.TestCase):
             self.assertEqual(r[0]["commandStatus"]["status"], "SUCCESS")
 
         chunks = self.api_client.query(
-            "select * from {} EMIT CHANGES LIMIT 1".format(stream_name), stream_properties=streamProperties, return_objects=True
+            "select * from {} EMIT CHANGES LIMIT 1".format(stream_name),
+            stream_properties=streamProperties,
+            return_objects=True,
         )
 
         for row_obj in chunks:
@@ -304,7 +379,10 @@ class TestKSQLAPI(unittest.TestCase):
         utils.drop_stream(self.api_client, table_name)
 
         r = self.api_client.create_stream(
-            table_name=table_name, columns_type=columns_type, topic=topic, value_format=value_format
+            table_name=table_name,
+            columns_type=columns_type,
+            topic=topic,
+            value_format=value_format,
         )
 
         self.assertTrue(r)
@@ -317,12 +395,18 @@ class TestKSQLAPI(unittest.TestCase):
         value_format = "DELIMITED"
         utils.drop_stream(self.api_client, table_name)
         self.api_client.create_stream(
-            table_name=table_name, columns_type=columns_type, topic=topic, value_format=value_format
+            table_name=table_name,
+            columns_type=columns_type,
+            topic=topic,
+            value_format=value_format,
         )
 
         with self.assertRaises(KSQLError):
             self.api_client.create_stream(
-                table_name=table_name, columns_type=columns_type, topic=topic, value_format=value_format
+                table_name=table_name,
+                columns_type=columns_type,
+                topic=topic,
+                value_format=value_format,
             )
 
     @vcr.use_cassette("tests/vcr_cassettes/raise_create_error_no_topic.yml")
@@ -334,10 +418,15 @@ class TestKSQLAPI(unittest.TestCase):
 
         with self.assertRaises(KSQLError):
             self.api_client.create_stream(
-                table_name=table_name, columns_type=columns_type, topic=topic, value_format=value_format
+                table_name=table_name,
+                columns_type=columns_type,
+                topic=topic,
+                value_format=value_format,
             )
 
-    @vcr.use_cassette("tests/vcr_cassettes/ksql_create_stream_as_without_conditions.yml")
+    @vcr.use_cassette(
+        "tests/vcr_cassettes/ksql_create_stream_as_without_conditions.yml"
+    )
     def test_create_stream_as_without_conditions(self):
 
         src_table = "pageviews_original"
@@ -351,7 +440,10 @@ class TestKSQLAPI(unittest.TestCase):
 
         try:
             r = self.api_client.create_stream(
-                table_name=src_table, columns_type=columns_type, topic=topic, value_format=value_format
+                table_name=src_table,
+                columns_type=columns_type,
+                topic=topic,
+                value_format=value_format,
             )
         except KSQLError:
             pass
@@ -366,7 +458,9 @@ class TestKSQLAPI(unittest.TestCase):
         )
         self.assertTrue(r)
 
-    @vcr.use_cassette("tests/vcr_cassettes/ksql_create_stream_as_with_conditions_without_startwith.yml")
+    @vcr.use_cassette(
+        "tests/vcr_cassettes/ksql_create_stream_as_with_conditions_without_startwith.yml"
+    )
     def test_create_stream_as_with_conditions_without_startwith(self):
 
         src_table = "pageviews_original"
@@ -381,7 +475,10 @@ class TestKSQLAPI(unittest.TestCase):
 
         try:
             r = self.api_client.create_stream(
-                table_name=src_table, columns_type=columns_type, topic=topic, value_format=value_format
+                table_name=src_table,
+                columns_type=columns_type,
+                topic=topic,
+                value_format=value_format,
             )
         except KSQLError:
             pass
@@ -398,7 +495,9 @@ class TestKSQLAPI(unittest.TestCase):
 
         self.assertTrue(r)
 
-    @vcr.use_cassette("tests/vcr_cassettes/ksql_create_stream_as_with_conditions_with_startwith.yml")
+    @vcr.use_cassette(
+        "tests/vcr_cassettes/ksql_create_stream_as_with_conditions_with_startwith.yml"
+    )
     def test_create_stream_as_with_conditions_with_startwith(self):
 
         src_table = "pageviews_original"
@@ -415,7 +514,10 @@ class TestKSQLAPI(unittest.TestCase):
 
         try:
             r = self.api_client.create_stream(
-                table_name=src_table, columns_type=columns_type, topic=topic, value_format=value_format
+                table_name=src_table,
+                columns_type=columns_type,
+                topic=topic,
+                value_format=value_format,
             )
         except KSQLError:
             pass
@@ -432,7 +534,9 @@ class TestKSQLAPI(unittest.TestCase):
 
         self.assertTrue(r)
 
-    @vcr.use_cassette("tests/vcr_cassettes/ksql_create_stream_as_with_conditions_with_startwith_with_and.yml")
+    @vcr.use_cassette(
+        "tests/vcr_cassettes/ksql_create_stream_as_with_conditions_with_startwith_with_and.yml"
+    )
     def test_create_stream_as_with_conditions_with_startwith_with_and(self):
 
         src_table = "pageviews_original"
@@ -447,7 +551,10 @@ class TestKSQLAPI(unittest.TestCase):
 
         try:
             r = self.api_client.create_stream(
-                table_name=src_table, columns_type=columns_type, topic=topic, value_format=value_format
+                table_name=src_table,
+                columns_type=columns_type,
+                topic=topic,
+                value_format=value_format,
             )
         except KSQLError:
             pass
@@ -464,7 +571,9 @@ class TestKSQLAPI(unittest.TestCase):
 
         self.assertTrue(r)
 
-    @vcr.use_cassette("tests/vcr_cassettes/ksql_create_stream_as_with_wrong_timestamp.yml")
+    @vcr.use_cassette(
+        "tests/vcr_cassettes/ksql_create_stream_as_with_wrong_timestamp.yml"
+    )
     def test_ksql_create_stream_as_with_wrong_timestamp(self):
         src_table = "prebid_traffic_log_total_stream"
         columns_type = ["name string", "age bigint", "userid string", "pageid bigint"]
@@ -479,7 +588,10 @@ class TestKSQLAPI(unittest.TestCase):
         utils.drop_stream(self.api_client, table_name)
         try:
             self.api_client.create_stream(
-                table_name=src_table, columns_type=columns_type, topic=topic, value_format=value_format
+                table_name=src_table,
+                columns_type=columns_type,
+                topic=topic,
+                value_format=value_format,
             )
         except KSQLError:
             pass

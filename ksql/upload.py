@@ -5,10 +5,10 @@ from ksql.errors import FileTypeError, InvalidQueryError
 
 
 class FileUpload(object):
-    """ UPLOAD KSQL RULES AS FILES """
+    """UPLOAD KSQL RULES AS FILES"""
 
     def __init__(self, url, **kwargs):
-        """ Instantiate the url pointer and the client object """
+        """Instantiate the url pointer and the client object"""
         self.url = url
         self.client = KSQLAPI(url)
 

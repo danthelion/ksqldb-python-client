@@ -79,14 +79,23 @@ class CreateBuilder(BaseCreateBuilder):
         super(CreateBuilder, self).__init__(table_type, str_format)
         self.properties = ["kafka_topic", "value_format", "key", "timestamp"]
 
-    def build(self, table_name, columns_type=[], topic=None, value_format="JSON", key=None):
+    def build(
+        self, table_name, columns_type=[], topic=None, value_format="JSON", key=None
+    ):
         if value_format.lower() not in self.value_formats:
             raise IllegalValueFormatError(value_format)
 
         built_colums_type = self._build_colums_type(columns_type)
         built_key = self._build_key(key)
 
-        sql_str = self.sql_format.format(self.table_type, table_name, built_colums_type, topic, value_format, built_key)
+        sql_str = self.sql_format.format(
+            self.table_type,
+            table_name,
+            built_colums_type,
+            topic,
+            value_format,
+            built_key,
+        )
         return sql_str
 
     @staticmethod
@@ -107,7 +116,13 @@ class CreateAsBuilder(BaseCreateBuilder):
     def __init__(self, table_type):
         str_format = "CREATE {} {} WITH (kafka_topic='{}', value_format='{}'{}) AS SELECT {} FROM {} {} {}"
         super(CreateAsBuilder, self).__init__(table_type, str_format)
-        self.properties = ["kafka_topic", "value_format", "partitions", "replicas", "timestamp"]
+        self.properties = [
+            "kafka_topic",
+            "value_format",
+            "partitions",
+            "replicas",
+            "timestamp",
+        ]
 
     def build(
         self,
@@ -127,9 +142,12 @@ class CreateAsBuilder(BaseCreateBuilder):
         if not kafka_topic:
             kafka_topic = table_name
 
-        select_clause, where_clause, partition_by_clause, properties = self._build_clauses(
-            select_columns, conditions, partition_by, **kwargs
-        )
+        (
+            select_clause,
+            where_clause,
+            partition_by_clause,
+            properties,
+        ) = self._build_clauses(select_columns, conditions, partition_by, **kwargs)
 
         sql_str = self.sql_format.format(
             self.table_type,

@@ -1,6 +1,10 @@
 import unittest
 from ksql import SQLBuilder
-from ksql.errors import SQLTypeNotImplementYetError, IllegalTableTypeError, IllegalValueFormatError
+from ksql.errors import (
+    SQLTypeNotImplementYetError,
+    IllegalTableTypeError,
+    IllegalValueFormatError,
+)
 
 
 class TestSQLBuilder(unittest.TestCase):
@@ -75,7 +79,12 @@ class TestSQLBuilder(unittest.TestCase):
 
     def test_create_table_with_key(self):
         table_name = "users_original"
-        columns_type = ["registertime bigint", "gender varchar", "regionid varchar", "userid varchar"]
+        columns_type = [
+            "registertime bigint",
+            "gender varchar",
+            "regionid varchar",
+            "userid varchar",
+        ]
         topic = "users"
         value_format = "JSON"
         key = "userid"
@@ -94,7 +103,12 @@ class TestSQLBuilder(unittest.TestCase):
 
     def test_create_table_without_key(self):
         table_name = "users_original"
-        columns_type = ["registertime bigint", "gender varchar", "regionid varchar", "userid varchar"]
+        columns_type = [
+            "registertime bigint",
+            "gender varchar",
+            "regionid varchar",
+            "userid varchar",
+        ]
         topic = "users"
         value_format = "JSON"
 
@@ -109,7 +123,12 @@ class TestSQLBuilder(unittest.TestCase):
 
     def test_create_table_without_key_avro(self):
         table_name = "users_original"
-        columns_type = ["registertime bigint", "gender varchar", "regionid varchar", "userid varchar"]
+        columns_type = [
+            "registertime bigint",
+            "gender varchar",
+            "regionid varchar",
+            "userid varchar",
+        ]
         topic = "users"
         value_format = "AVRO"
 
@@ -122,11 +141,18 @@ class TestSQLBuilder(unittest.TestCase):
             value_format=value_format,
         )
 
-        self.assertEqual(build_sql_str.lower(), self.create_table_without_key_avro.lower())
+        self.assertEqual(
+            build_sql_str.lower(), self.create_table_without_key_avro.lower()
+        )
 
     def test_create_table_without_key_delimited(self):
         table_name = "users_original"
-        columns_type = ["registertime bigint", "gender varchar", "regionid varchar", "userid varchar"]
+        columns_type = [
+            "registertime bigint",
+            "gender varchar",
+            "regionid varchar",
+            "userid varchar",
+        ]
         topic = "users"
         value_format = "DELIMITED"
 
@@ -139,11 +165,18 @@ class TestSQLBuilder(unittest.TestCase):
             value_format=value_format,
         )
 
-        self.assertEqual(build_sql_str.lower(), self.create_table_without_key_delimited.lower())
+        self.assertEqual(
+            build_sql_str.lower(), self.create_table_without_key_delimited.lower()
+        )
 
     def test_create_stream_without_key(self):
         table_name = "users_original"
-        columns_type = ["registertime bigint", "gender varchar", "regionid varchar", "userid varchar"]
+        columns_type = [
+            "registertime bigint",
+            "gender varchar",
+            "regionid varchar",
+            "userid varchar",
+        ]
         topic = "users"
         value_format = "JSON"
 
@@ -177,7 +210,9 @@ class TestSQLBuilder(unittest.TestCase):
             value_format=value_format,
         )
 
-        self.assertEqual(built_sql_str.lower(), self.create_stream_as_without_condition.lower())
+        self.assertEqual(
+            built_sql_str.lower(), self.create_stream_as_without_condition.lower()
+        )
 
     def test_create_stream_as_without_condition_avro(self):
         sql_type = "create_as"
@@ -198,7 +233,9 @@ class TestSQLBuilder(unittest.TestCase):
             value_format=value_format,
         )
 
-        self.assertEqual(built_sql_str.lower(), self.create_stream_as_without_condition_avro.lower())
+        self.assertEqual(
+            built_sql_str.lower(), self.create_stream_as_without_condition_avro.lower()
+        )
 
     def test_create_stream_as_without_condition_select_star(self):
         sql_type = "create_as"
@@ -217,7 +254,10 @@ class TestSQLBuilder(unittest.TestCase):
             value_format=value_format,
         )
 
-        self.assertEqual(built_sql_str.lower(), self.create_stream_as_without_condition_select_star.lower())
+        self.assertEqual(
+            built_sql_str.lower(),
+            self.create_stream_as_without_condition_select_star.lower(),
+        )
 
     def test_create_stream_as_without_condition_select_star_with_blank_list(self):
         sql_type = "create_as"
@@ -238,7 +278,10 @@ class TestSQLBuilder(unittest.TestCase):
             select_columns=select_columns,
         )
 
-        self.assertEqual(built_sql_str.lower(), self.create_stream_as_without_condition_select_star.lower())
+        self.assertEqual(
+            built_sql_str.lower(),
+            self.create_stream_as_without_condition_select_star.lower(),
+        )
 
     def test_create_stream_as_without_condition_select_star_with_only_star(self):
         sql_type = "create_as"
@@ -259,7 +302,10 @@ class TestSQLBuilder(unittest.TestCase):
             select_columns=select_columns,
         )
 
-        self.assertEqual(built_sql_str.lower(), self.create_stream_as_without_condition_select_star.lower())
+        self.assertEqual(
+            built_sql_str.lower(),
+            self.create_stream_as_without_condition_select_star.lower(),
+        )
 
     def test_create_stream_as_with_condition(self):
         sql_type = "create_as"
@@ -282,7 +328,9 @@ class TestSQLBuilder(unittest.TestCase):
             conditions=conditions,
         )
 
-        self.assertEqual(built_sql_str.lower(), self.create_stream_as_with_condition.lower())
+        self.assertEqual(
+            built_sql_str.lower(), self.create_stream_as_with_condition.lower()
+        )
 
     def test_create_stream_as_with_condition_double_qoute(self):
         sql_type = "create_as"
@@ -305,7 +353,9 @@ class TestSQLBuilder(unittest.TestCase):
             conditions=conditions,
         )
 
-        self.assertEqual(built_sql_str.lower(), self.create_stream_as_with_condition.lower())
+        self.assertEqual(
+            built_sql_str.lower(), self.create_stream_as_with_condition.lower()
+        )
 
     def test_create_stream_as_with_condition_with_partitions(self):
         sql_type = "create_as"
@@ -330,7 +380,10 @@ class TestSQLBuilder(unittest.TestCase):
             partitions=paritions,
         )
 
-        self.assertEqual(built_sql_str.lower(), self.create_stream_as_with_condition_with_partitions.lower())
+        self.assertEqual(
+            built_sql_str.lower(),
+            self.create_stream_as_with_condition_with_partitions.lower(),
+        )
 
     def test_create_stream_as_without_condition_partition_by(self):
         sql_type = "create_as"
@@ -353,13 +406,21 @@ class TestSQLBuilder(unittest.TestCase):
             partition_by=partition_by,
         )
 
-        self.assertEqual(built_sql_str.lower(), self.create_stream_as_without_condition_partition_by.lower())
+        self.assertEqual(
+            built_sql_str.lower(),
+            self.create_stream_as_without_condition_partition_by.lower(),
+        )
 
     def test_sql_type_error(self):
         sql_type = "view"
         table_type = "stream"
         table_name = "users_original"
-        columns_type = ["registertime bigint", "gender varchar", "regionid varchar", "userid varchar"]
+        columns_type = [
+            "registertime bigint",
+            "gender varchar",
+            "regionid varchar",
+            "userid varchar",
+        ]
         topic = "users"
         value_format = "JSON"
 
@@ -377,7 +438,12 @@ class TestSQLBuilder(unittest.TestCase):
         sql_type = "create"
         table_type = "qoo"
         table_name = "users_original"
-        columns_type = ["registertime bigint", "gender varchar", "regionid varchar", "userid varchar"]
+        columns_type = [
+            "registertime bigint",
+            "gender varchar",
+            "regionid varchar",
+            "userid varchar",
+        ]
         topic = "users"
         value_format = "JSON"
 
@@ -395,7 +461,12 @@ class TestSQLBuilder(unittest.TestCase):
         sql_type = "create"
         table_type = "stream"
         table_name = "users_original"
-        columns_type = ["registertime bigint", "gender varchar", "regionid varchar", "userid varchar"]
+        columns_type = [
+            "registertime bigint",
+            "gender varchar",
+            "regionid varchar",
+            "userid varchar",
+        ]
         topic = "users"
         value_format = "foo"
 

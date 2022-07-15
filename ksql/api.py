@@ -9,14 +9,13 @@ import urllib
 from copy import deepcopy
 from requests import Timeout
 from urllib.parse import urlparse
-from hyper import HTTPConnection
-
+import httpx
 
 from ksql.builder import SQLBuilder
 from ksql.errors import CreateError, InvalidQueryError, KSQLError
 
 
-class BaseAPI(object):
+class BaseAPI:
     def __init__(self, url, **kwargs):
         self.url = url
         self.max_retries = kwargs.get("max_retries", 3)
@@ -25,7 +24,7 @@ class BaseAPI(object):
         self.api_key = kwargs.get("api_key")
         self.secret = kwargs.get("secret")
         self.headers = {
-            'Content-Type': 'application/vnd.ksql.v1+json; charset=utf-8',
+            "Content-Type": "application/vnd.ksql.v1+json; charset=utf-8",
         }
 
     def get_timout(self):
@@ -45,7 +44,10 @@ class BaseAPI(object):
         r_json = json.loads(response)
         if r.getcode() != 200:
             # seems to be the new API behavior
-            if r_json.get("@type") == "statement_error" or r_json.get("@type") == "generic_error":
+            if (
+                r_json.get("@type") == "statement_error"
+                or r_json.get("@type") == "generic_error"
+            ):
                 error_message = r_json["message"]
                 error_code = r_json["error_code"]
                 stackTrace = r_json["stack_trace"]
@@ -54,7 +56,11 @@ class BaseAPI(object):
                 raise KSQLError("Unknown Error: {}".format(r.content))
         else:
             # seems to be the old API behavior, so some errors have status 200, bug??
-            if r_json and r_json[0]["@type"] == "currentStatus" and r_json[0]["commandStatus"]["status"] == "ERROR":
+            if (
+                r_json
+                and r_json[0]["@type"] == "currentStatus"
+                and r_json[0]["commandStatus"]["status"] == "ERROR"
+            ):
                 error_message = r_json[0]["commandStatus"]["message"]
                 error_code = None
                 stackTrace = None
@@ -62,13 +68,22 @@ class BaseAPI(object):
             return True
 
     def ksql(self, ksql_string, stream_properties=None):
-        r = self._request(endpoint="ksql", sql_string=ksql_string, stream_properties=stream_properties)
+        r = self._request(
+            endpoint="ksql", sql_string=ksql_string, stream_properties=stream_properties
+        )
         response = r.read().decode("utf-8")
         self._raise_for_status(r, response)
         res = json.loads(response)
         return res
 
-    def query2(self, query_string, encoding="utf-8", chunk_size=128, stream_properties=None, idle_timeout=None):
+    def query2(
+        self,
+        query_string,
+        encoding="utf-8",
+        chunk_size=128,
+        stream_properties=None,
+        idle_timeout=None,
+    ):
         """
         Process streaming incoming data with HTTP/2.
 
@@ -83,34 +98,45 @@ class BaseAPI(object):
         else:
             body["properties"] = {}
 
-        with HTTPConnection(parsed_uri.netloc) as connection:
-            streaming_response = self._request2(
-                endpoint="query-stream", body=body, connection=connection
-            )
-            start_idle = None
+        streaming_response = self._request2(
+            endpoint="query-stream", body=body, connection=httpx.request
+        )
+        start_idle = None
+        if streaming_response.status_code == 200:
+            for chunk in streaming_response.iter_bytes(chunk_size):
+                if chunk != b"\n":
+                    start_idle = None
+                    yield chunk.decode(encoding)
 
-            if streaming_response.status == 200:
-                for chunk in streaming_response.read_chunked():
-                    if chunk != b"\n":
-                        start_idle = None
-                        yield chunk.decode(encoding)
+                else:
+                    if not start_idle:
+                        start_idle = time.time()
+                    if idle_timeout and time.time() - start_idle > idle_timeout:
+                        print(
+                            "Ending query because of time out! ({} seconds)".format(
+                                idle_timeout
+                            )
+                        )
+                        return
+        else:
+            raise ValueError("Return code is {}.".format(streaming_response.status))
 
-                    else:
-                        if not start_idle:
-                            start_idle = time.time()
-                        if idle_timeout and time.time() - start_idle > idle_timeout:
-                            print("Ending query because of time out! ({} seconds)".format(idle_timeout))
-                            return
-            else:
-                raise ValueError("Return code is {}.".format(streaming_response.status))
-
-    def query(self, query_string, encoding="utf-8", chunk_size=128, stream_properties=None, idle_timeout=None):
+    def query(
+        self,
+        query_string,
+        encoding="utf-8",
+        chunk_size=128,
+        stream_properties=None,
+        idle_timeout=None,
+    ):
         """
         Process streaming incoming data.
 
         """
         streaming_response = self._request(
-            endpoint="query", sql_string=query_string, stream_properties=stream_properties
+            endpoint="query",
+            sql_string=query_string,
+            stream_properties=stream_properties,
         )
         start_idle = None
 
@@ -123,10 +149,16 @@ class BaseAPI(object):
                     if not start_idle:
                         start_idle = time.time()
                     if idle_timeout and time.time() - start_idle > idle_timeout:
-                        print("Ending query because of time out! ({} seconds)".format(idle_timeout))
+                        print(
+                            "Ending query because of time out! ({} seconds)".format(
+                                idle_timeout
+                            )
+                        )
                         return
         else:
-            raise ValueError("Return code is {}.".format(streaming_response.status_code))
+            raise ValueError(
+                "Return code is {}.".format(streaming_response.status_code)
+            )
 
     def get_request(self, endpoint):
         auth = (self.api_key, self.secret) if self.api_key or self.secret else None
@@ -138,15 +170,24 @@ class BaseAPI(object):
 
         headers = deepcopy(self.headers)
         if self.api_key and self.secret:
-            base64string = base64.b64encode(bytes("{}:{}".format(self.api_key, self.secret), "utf-8")).decode("utf-8")
+            base64string = base64.b64encode(
+                bytes("{}:{}".format(self.api_key, self.secret), "utf-8")
+            ).decode("utf-8")
             headers["Authorization"] = "Basic %s" % base64string
 
-        connection.request(method=method.upper(), url=url, headers=headers, body=data)
-        resp = connection.get_response()
+        resp = connection(method=method.upper(), url=url, headers=headers, body=data)
+        # resp = connection.get_response()
 
         return resp
 
-    def _request(self, endpoint, method="POST", sql_string="", stream_properties=None, encoding="utf-8"):
+    def _request(
+        self,
+        endpoint,
+        method="POST",
+        sql_string="",
+        stream_properties=None,
+        encoding="utf-8",
+    ):
         url = "{}/{}".format(self.url, endpoint)
 
         logging.debug("KSQL generated: {}".format(sql_string))
@@ -161,10 +202,14 @@ class BaseAPI(object):
 
         headers = deepcopy(self.headers)
         if self.api_key and self.secret:
-            base64string = base64.b64encode(bytes("{}:{}".format(self.api_key, self.secret), "utf-8")).decode("utf-8")
+            base64string = base64.b64encode(
+                bytes("{}:{}".format(self.api_key, self.secret), "utf-8")
+            ).decode("utf-8")
             headers["Authorization"] = "Basic %s" % base64string
 
-        req = urllib.request.Request(url=url, data=data, headers=headers, method=method.upper())
+        req = urllib.request.Request(
+            url=url, data=data, headers=headers, method=method.upper()
+        )
 
         try:
             r = urllib.request.urlopen(req, timeout=self.timeout)
@@ -175,7 +220,11 @@ class BaseAPI(object):
                 raise http_error
             else:
                 logging.debug("content: {}".format(content))
-                raise KSQLError(content.get("message"), content.get("error_code"), content.get("stackTrace"))
+                raise KSQLError(
+                    content.get("message"),
+                    content.get("error_code"),
+                    content.get("stackTrace"),
+                )
         else:
             return r
 
@@ -197,16 +246,13 @@ class BaseAPI(object):
             raise ValueError("Return code is {}.".format(response.status_code))
 
     def inserts_stream(self, stream_name, rows):
-        body = '{{"target":"{}"}}'.format(stream_name)
-        for row in rows:
-            body += '\n{}'.format(json.dumps(row))
-
-        parsed_uri = urlparse(self.url)
+        # parsed_uri = urlparse(self.url)
         url = "{}/{}".format(self.url, "inserts-stream")
         headers = deepcopy(self.headers)
-        with HTTPConnection(parsed_uri.netloc) as connection:
-            connection.request("POST", url, bytes(body, "utf-8"), headers)
-            response = connection.get_response()
+
+        result = None
+        for row in rows:
+            response = httpx.post(url, data=row, headers=headers)
             result = response.read()
 
         result_str = result.decode("utf-8")
@@ -305,7 +351,9 @@ class SimplifiedAPI(BaseAPI):
             **kwargs,
         )
 
-    def _create(self, table_type, table_name, columns_type, topic, value_format="JSON", key=None):
+    def _create(
+        self, table_type, table_name, columns_type, topic, value_format="JSON", key=None
+    ):
         ksql_string = SQLBuilder.build(
             sql_type="create",
             table_type=table_type,
